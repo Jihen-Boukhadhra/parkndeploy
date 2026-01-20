@@ -13,9 +13,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # Grab the tag from the completed CI Release run
-      - name: Set TAG from previous workflow
-        run: echo "TAG=${{ github.event.workflow_run.outputs.TAG }}" >> $GITHUB_ENV
+      # Extract the tag from the completed workflow
+      - name: Get tag from CI release
+        run: |
+          TAG=$(echo "${{ github.event.workflow_run.head_commit.message }}" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+          echo "TAG=$TAG" >> $GITHUB_ENV
+          echo "Tag detected: $TAG"
 
       - name: Download backend artifact
         uses: actions/download-artifact@v4
@@ -23,11 +26,13 @@ jobs:
           name: backend-publish-${{ env.TAG }}
           path: backend-publish
 
-      - name: Deploy Backend
+      - name: Deploy backend
         run: |
-          echo "Deploying backend from backend-publish..."
-          ls backend-publish
-          # Add your real deployment commands here
+          echo "Deploying backend version $TAG..."
+          # Example deployment commands
+          cp -r backend-publish/* /var/www/backend/
+          systemctl restart backend-service
+          echo "Backend deployed."
 
   deploy-frontend:
     runs-on: ubuntu-latest
@@ -35,8 +40,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set TAG from previous workflow
-        run: echo "TAG=${{ github.event.workflow_run.outputs.TAG }}" >> $GITHUB_ENV
+      - name: Get tag from CI release
+        run: |
+          TAG=$(echo "${{ github.event.workflow_run.head_commit.message }}" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+          echo "TAG=$TAG" >> $GITHUB_ENV
+          echo "Tag detected: $TAG"
 
       - name: Download frontend artifact
         uses: actions/download-artifact@v4
@@ -44,8 +52,10 @@ jobs:
           name: frontend-dist-${{ env.TAG }}
           path: frontend-dist
 
-      - name: Deploy Frontend
+      - name: Deploy frontend
         run: |
-          echo "Deploying frontend from frontend-dist..."
-          ls frontend-dist
-          # Add your real deployment commands here
+          echo "Deploying frontend version $TAG..."
+          # Example deployment commands
+          cp -r frontend-dist/* /var/www/frontend/
+          systemctl reload nginx
+          echo "Frontend deployed."
