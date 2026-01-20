@@ -2,12 +2,12 @@ import "./App.css";
 import { useQuery } from "@tanstack/react-query";
 import ParkingsAngersEndpointsQueryMethods, {
   PARKINGS_QUERY_KEY,
-} from "@/api/services/ParkingsAngersService/queries";
-import ParkingList from "@/components/ParkingList/ParkingList";
-import { LoadingSpinner } from "@/components/ui/loadingspinner";
-import ParkingListFilters from "@/components/ParkingList/ParkingListFilters";
-import { useParkingSearchStore } from "@/stores/parkingSearchStore";
-import AppVersion from "@/components/AppVersion";
+} from "./api/services/ParkingsAngersService/queries";
+import ParkingList from "./components/ParkingList/ParkingList";
+import { LoadingSpinner } from "./components/ui/loadingspinner";
+import ParkingListFilters from "./components/ParkingList/ParkingListFilters";
+import { useParkingSearchStore } from "./stores/parkingSearchStore";
+import AppVersion from "./AppVersion"; // relative import
 
 function App() {
   const { parkingName } = useParkingSearchStore();
