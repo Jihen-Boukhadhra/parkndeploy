@@ -7,7 +7,7 @@ import ParkingList from "@/components/ParkingList/ParkingList";
 import { LoadingSpinner } from "@/components/ui/loadingspinner";
 import ParkingListFilters from "@/components/ParkingList/ParkingListFilters";
 import { useParkingSearchStore } from "@/stores/parkingSearchStore";
-import AppVersion from "./AppVersion";
+import AppVersion from "./AppVersion"; // <-- Correct relative import
 
 function App() {
   const { parkingName } = useParkingSearchStore();
@@ -24,7 +24,7 @@ function App() {
       <AppVersion />
 
       <h1 className="text-2xl font-bold text-center">
-        Where can I Park in Angers? 👀
+        Where can I Park in Angers ? 👀
       </h1>
 
       <ParkingListFilters
