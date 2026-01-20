@@ -2,12 +2,12 @@ import "./App.css";
 import { useQuery } from "@tanstack/react-query";
 import ParkingsAngersEndpointsQueryMethods, {
   PARKINGS_QUERY_KEY,
-} from "./api/services/ParkingsAngersService/queries";
-import ParkingList from "./components/ParkingList/ParkingList";
-import { LoadingSpinner } from "./components/ui/loadingspinner";
-import ParkingListFilters from "./components/ParkingList/ParkingListFilters";
-import { useParkingSearchStore } from "./stores/parkingSearchStore";
-import AppVersion from "./AppVersion"; // relative import
+} from "@/api/services/ParkingsAngersService/queries";
+import ParkingList from "@/components/ParkingList/ParkingList";
+import { LoadingSpinner } from "@/components/ui/loadingspinner";
+import ParkingListFilters from "@/components/ParkingList/ParkingListFilters";
+import { useParkingSearchStore } from "@/stores/parkingSearchStore";
+import AppVersion from "./AppVersion";
 
 function App() {
   const { parkingName } = useParkingSearchStore();
@@ -18,15 +18,13 @@ function App() {
       ParkingsAngersEndpointsQueryMethods.getAllParkings(parkingName),
   });
 
-  console.log(parkingName);
-
   return (
     <div className="flex flex-col gap-5 items-center relative">
       {/* Display app version at top-right */}
       <AppVersion />
 
       <h1 className="text-2xl font-bold text-center">
-        Where can I Park in Angers ? 👀
+        Where can I Park in Angers? 👀
       </h1>
 
       <ParkingListFilters
