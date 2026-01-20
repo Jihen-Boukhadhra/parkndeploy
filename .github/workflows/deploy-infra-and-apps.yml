@@ -1,25 +1,28 @@
 name: Deploy Infra & Apps
 
 on:
-  workflow_run:
-    workflows: ["CI Release"]
-    types:
-      - completed
+  push:
+    tags:
+      - "[0-9]+.[0-9]+.[0-9]+"  # Only semantic version tags
 
 jobs:
-  deploy-backend:
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      # Extract the tag from the completed workflow
-      - name: Get tag from CI release
-        run: |
-          TAG=$(echo "${{ github.event.workflow_run.head_commit.message }}" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
-          echo "TAG=$TAG" >> $GITHUB_ENV
-          echo "Tag detected: $TAG"
+      # Call the reusable CI Release workflow
+      - name: Run CI Release
+        id: ci-release
+        uses: ./.github/workflows/ci-release.yml
+        with:
+          TAG: ${{ github.ref_name }}
 
+      - name: Set TAG
+        run: echo "TAG=${{ steps.ci-release.outputs.TAG }}" >> $GITHUB_ENV
+
+      # Download backend artifact
       - name: Download backend artifact
         uses: actions/download-artifact@v4
         with:
@@ -29,23 +32,11 @@ jobs:
       - name: Deploy backend
         run: |
           echo "Deploying backend version $TAG..."
-          # Example deployment commands
           cp -r backend-publish/* /var/www/backend/
           systemctl restart backend-service
           echo "Backend deployed."
 
-  deploy-frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Get tag from CI release
-        run: |
-          TAG=$(echo "${{ github.event.workflow_run.head_commit.message }}" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
-          echo "TAG=$TAG" >> $GITHUB_ENV
-          echo "Tag detected: $TAG"
-
+      # Download frontend artifact
       - name: Download frontend artifact
         uses: actions/download-artifact@v4
         with:
@@ -55,7 +46,6 @@ jobs:
       - name: Deploy frontend
         run: |
           echo "Deploying frontend version $TAG..."
-          # Example deployment commands
           cp -r frontend-dist/* /var/www/frontend/
           systemctl reload nginx
           echo "Frontend deployed."
