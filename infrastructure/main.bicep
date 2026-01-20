@@ -1,4 +1,3 @@
-
 targetScope = 'resourceGroup' // We'll deploy the resources in the provided resource group
 
 // Parameters to easily construct resource names
