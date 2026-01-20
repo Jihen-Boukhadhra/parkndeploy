@@ -22,8 +22,8 @@ jobs:
       # Pass the version to frontend via .env
       - name: Set frontend version
         working-directory: frontend
-        run: |
-          echo "VITE_APP_VERSION=$VERSION" > .env
+        run: echo "VITE_APP_VERSION=${GITHUB_REF#refs/tags/}" > .env
+
 
       - name: Install dependencies
         working-directory: frontend
