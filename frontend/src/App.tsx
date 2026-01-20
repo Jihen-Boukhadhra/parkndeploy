@@ -7,32 +7,27 @@ import ParkingList from "@/components/ParkingList/ParkingList";
 import { LoadingSpinner } from "@/components/ui/loadingspinner";
 import ParkingListFilters from "@/components/ParkingList/ParkingListFilters";
 import { useParkingSearchStore } from "@/stores/parkingSearchStore";
-import AppVersion from "./AppVersion"; // <-- Correct relative import
 
 function App() {
   const { parkingName } = useParkingSearchStore();
 
   const { data, isPending, isError } = useQuery({
     queryKey: [PARKINGS_QUERY_KEY, { parkingName }],
-    queryFn: () =>
-      ParkingsAngersEndpointsQueryMethods.getAllParkings(parkingName),
+    queryFn: () => ParkingsAngersEndpointsQueryMethods.getAllParkings(parkingName),
   });
 
-  return (
-    <div className="flex flex-col gap-5 items-center relative">
-      {/* Display app version at top-right */}
-      <AppVersion />
+  console.log(parkingName)
 
+  return (
+    <div className="flex flex-col gap-5 items-center">
       <h1 className="text-2xl font-bold text-center">
         Where can I Park in Angers ? 👀
       </h1>
-
       <ParkingListFilters
         onChange={(parkingName: string) => {
           console.log(parkingName);
         }}
       />
-
       {isPending && <LoadingSpinner className="mr-2 h-4 w-4 animate-spin" />}
       {isError && <span>Something went wrong with the backend ...</span>}
       {data && <ParkingList parkings={data.parkings} />}
