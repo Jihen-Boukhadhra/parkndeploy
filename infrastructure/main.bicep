@@ -30,11 +30,6 @@ module appService 'modules/appService.bicep' = {
   }
 }
 
-// Export App Service Name
-output appServiceName string = appService.outputs.appServiceName
-
-
-
 // Create the Static Web App through the StaticWebApp module
 module staticWebApp 'modules/staticWebApp.bicep' = {
   name: 'staticWebApp'
