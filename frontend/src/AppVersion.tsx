@@ -1,15 +1,20 @@
-const AppVersion = () => {
+import React from "react";
+
+const AppVersion: React.FC = () => {
+  const version = import.meta.env.VITE_APP_VERSION || "dev";
+
   return (
     <div
       style={{
         position: "absolute",
-        top: "1rem",
-        right: "1rem",
-        fontSize: "0.9rem",
-        color: "#666",
+        top: "10px",
+        right: "10px",
+        fontSize: "0.85rem",
+        fontWeight: "bold",
+        color: "#333",
       }}
     >
-      Version: {import.meta.env.VITE_APP_VERSION || "dev"}
+      v{version}
     </div>
   );
 };
