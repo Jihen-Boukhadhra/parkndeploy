@@ -17,10 +17,11 @@ jobs:
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
-      # Create .env for Vite (frontend)
+     # Get version from tag and set .env in frontend
       - name: Set frontend version
         working-directory: frontend
-        run: echo "VITE_APP_VERSION=$VERSION" > .env
+        run: |
+          echo "VITE_APP_VERSION=${GITHUB_REF#refs/tags/}" > .env
 
       # Install dependencies
       - name: Install dependencies
