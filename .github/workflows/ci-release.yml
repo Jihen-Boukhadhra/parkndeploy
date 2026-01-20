@@ -3,49 +3,49 @@ name: CI Release
 on:
   push:
     tags:
-      - "[0-9].[0-9].[0-9]" 
+      - "[0-9].[0-9].[0-9]"  # Semantic versioning
 
 jobs:
-  # Frontend Build
+  # Frontend Build & Artifact
   frontend-ci:
-    name: Frontend - Build & Artifact
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      # Get the version from tag
+      # Get version from tag
       - name: Get version from tag
         id: get_version
-        run: |
-          echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
 
-      # Pass the version to frontend via .env
+      # Create .env for Vite (frontend)
       - name: Set frontend version
         working-directory: frontend
-        run: echo "VITE_APP_VERSION=${GITHUB_REF#refs/tags/}" > .env
+        run: echo "VITE_APP_VERSION=$VERSION" > .env
 
-
+      # Install dependencies
       - name: Install dependencies
         working-directory: frontend
         run: npm ci
 
+      # Build frontend
       - name: Build frontend
         working-directory: frontend
         run: npm run build
 
+      # Upload frontend artifact
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
           path: frontend/dist
 
-  # Backend Publish 
+  # Backend Build & Artifact
   backend-ci:
-    name: Backend - Publish & Artifact
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      # Validate semantic version tag
       - name: Validate semantic version tag
         run: |
           if [[ ! "${GITHUB_REF#refs/tags/}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
@@ -53,15 +53,17 @@ jobs:
             exit 1
           fi
 
-      - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
+      # Setup .NET SDK
+      - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 9.0.x
 
+      # Publish backend
       - name: Publish backend
-        working-directory: ./backend
+        working-directory: backend
         run: dotnet publish -c Release -o publish
 
+      # Upload backend artifact
       - name: Upload backend artifact
         uses: actions/upload-artifact@v4
         with:
