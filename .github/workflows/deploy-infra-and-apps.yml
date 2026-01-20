@@ -13,17 +13,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Grab the tag from the completed CI Release run
+      - name: Set TAG from previous workflow
+        run: echo "TAG=${{ github.event.workflow_run.outputs.TAG }}" >> $GITHUB_ENV
+
       - name: Download backend artifact
         uses: actions/download-artifact@v4
         with:
-          name: backend-publish-${{ github.event.workflow_run.head_branch }}
+          name: backend-publish-${{ env.TAG }}
           path: backend-publish
 
       - name: Deploy Backend
         run: |
           echo "Deploying backend from backend-publish..."
-          # Add your deployment commands here
           ls backend-publish
+          # Add your real deployment commands here
 
   deploy-frontend:
     runs-on: ubuntu-latest
@@ -31,14 +35,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set TAG from previous workflow
+        run: echo "TAG=${{ github.event.workflow_run.outputs.TAG }}" >> $GITHUB_ENV
+
       - name: Download frontend artifact
         uses: actions/download-artifact@v4
         with:
-          name: frontend-dist-${{ github.event.workflow_run.head_branch }}
+          name: frontend-dist-${{ env.TAG }}
           path: frontend-dist
 
       - name: Deploy Frontend
         run: |
           echo "Deploying frontend from frontend-dist..."
-          # Add your deployment commands here
           ls frontend-dist
+          # Add your real deployment commands here
