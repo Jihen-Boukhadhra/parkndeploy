@@ -3,7 +3,7 @@ name: CI Release
 on:
   push:
     tags:
-      - "[0-9].[0-9].[0-9]"  # Semantic versioning
+      - "[0-9]+.[0-9]+.[0-9]+"  # Semantic versioning
 
 jobs:
   # Frontend Build & Artifact
@@ -42,7 +42,8 @@ jobs:
       # Validate semantic version tag
       - name: Validate semantic version tag
         run: |
-          if [[ ! "${GITHUB_REF#refs/tags/}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          TAG=${GITHUB_REF#refs/tags/}
+          if [[ ! "$TAG" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "ERROR: Tag must follow semantic versioning MAJOR.MINOR.PATCH"
             exit 1
           fi
