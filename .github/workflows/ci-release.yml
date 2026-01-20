@@ -7,16 +7,18 @@ on:
 
 jobs:
   set-tag:
+    name: Set Tag
     runs-on: ubuntu-latest
     outputs:
-      TAG: ${{ steps.get-tag.outputs.TAG }}
+      TAG: ${{ steps.set.outputs.TAG }}
     steps:
       - name: Extract tag name
-        id: get-tag
-        run: echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-             echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        id: set
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          echo "TAG=$TAG" >> $GITHUB_OUTPUT
+          echo "TAG=$TAG" >> $GITHUB_ENV
 
-  # Frontend Build & Artifact
   frontend-ci:
     name: Frontend - Build & Artifact
     runs-on: ubuntu-latest
@@ -24,26 +26,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Install dependencies
       - name: Install dependencies
         working-directory: frontend
         run: npm ci
 
-      # Build frontend with version injected
       - name: Build frontend
         working-directory: frontend
         env:
           VITE_APP_VERSION: ${{ needs.set-tag.outputs.TAG }}
         run: npm run build
 
-      # Upload frontend artifact with tag in the name
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v4
         with:
           name: frontend-dist-${{ needs.set-tag.outputs.TAG }}
           path: frontend/dist
 
-  # Backend Build & Artifact
   backend-ci:
     name: Backend - Publish & Artifact
     runs-on: ubuntu-latest
@@ -51,17 +49,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Setup .NET SDK
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 9.0.x
 
-      # Publish backend
       - name: Publish backend
         working-directory: backend
         run: dotnet publish -c Release -o publish
 
-      # Upload backend artifact with tag in the name
       - name: Upload backend artifact
         uses: actions/upload-artifact@v4
         with:
