@@ -21,6 +21,7 @@ jobs:
 
       # Pass the version to frontend via .env
       - name: Set frontend version
+        working-directory: frontend
         run: |
           echo "VITE_APP_VERSION=$VERSION" > .env
 
