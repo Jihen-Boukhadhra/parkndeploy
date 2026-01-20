@@ -1,64 +1,25 @@
 name: CI Release
 
 on:
-  push:
-    tags:
-      - "[0-9]+.[0-9]+.[0-9]+"  # Semantic versioning
+  workflow_call:
+    inputs:
+      TAG:
+        description: 'Semantic version tag'
+        required: true
+        type: string
+    outputs:
+      TAG:
+        description: 'Tag used for release'
+        value: ${{ jobs.set-tag.outputs.TAG }}
 
 jobs:
   set-tag:
-    name: Set Tag
     runs-on: ubuntu-latest
     outputs:
-      TAG: ${{ steps.set.outputs.TAG }}
+      TAG: ${{ steps.set-tag.outputs.TAG }}
     steps:
-      - name: Extract tag name
-        id: set
+      - name: Set tag
+        id: set-tag
         run: |
-          TAG=${GITHUB_REF#refs/tags/}
-          echo "TAG=$TAG" >> $GITHUB_OUTPUT
-          echo "TAG=$TAG" >> $GITHUB_ENV
-
-  frontend-ci:
-    name: Frontend - Build & Artifact
-    runs-on: ubuntu-latest
-    needs: set-tag
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        working-directory: frontend
-        run: npm ci
-
-      - name: Build frontend
-        working-directory: frontend
-        env:
-          VITE_APP_VERSION: ${{ needs.set-tag.outputs.TAG }}
-        run: npm run build
-
-      - name: Upload frontend artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-dist-${{ needs.set-tag.outputs.TAG }}
-          path: frontend/dist
-
-  backend-ci:
-    name: Backend - Publish & Artifact
-    runs-on: ubuntu-latest
-    needs: set-tag
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 9.0.x
-
-      - name: Publish backend
-        working-directory: backend
-        run: dotnet publish -c Release -o publish
-
-      - name: Upload backend artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: backend-publish-${{ needs.set-tag.outputs.TAG }}
-          path: backend/publish
+          echo "TAG=${{ inputs.TAG }}" >> $GITHUB_ENV
+          echo "TAG=${{ inputs.TAG }}" >> $GITHUB_OUTPUT
