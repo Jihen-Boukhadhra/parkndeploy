@@ -23,3 +23,45 @@ jobs:
         run: |
           echo "TAG=${{ inputs.TAG }}" >> $GITHUB_ENV
           echo "TAG=${{ inputs.TAG }}" >> $GITHUB_OUTPUT
+  frontend-ci:
+    name: Frontend - Build & Artifact
+    runs-on: ubuntu-latest
+    needs: set-tag
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        env:
+          VITE_APP_VERSION: ${{ needs.set-tag.outputs.TAG }}
+        run: npm run build
+
+      - name: Upload frontend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist-${{ needs.set-tag.outputs.TAG }}
+          path: frontend/dist
+  backend-ci:
+    name: Backend - Publish & Artifact
+    runs-on: ubuntu-latest
+    needs: set-tag
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Publish backend
+        working-directory: backend
+        run: dotnet publish -c Release -o publish
+
+      - name: Upload backend artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-publish-${{ needs.set-tag.outputs.TAG }}
+          path: backend/publish
