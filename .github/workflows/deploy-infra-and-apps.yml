@@ -11,6 +11,7 @@ jobs:
     environment: production
     outputs:
       appServiceName: ${{ steps.bicep_deploy.outputs.appServiceName }}
+      staticWebAppName: ${{ steps.bicep_deploy.outputs.staticWebAppName }}
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
