@@ -1,101 +1,28 @@
+name: CD Deploy
+
 on:
-  push:
-    tags:
-      - '[0-9]+.[0-9]+.[0-9]+'
+  workflow_run:
+    workflows: ["CI Release"]
+    types:
+      - completed
+
   workflow_dispatch:
+    inputs:
+      run_id:
+        description: "CI run ID to deploy"
+        required: false
+        type: string
 
-permissions:
-  id-token: write
-
-env: 
+env:
   AZURE_RG_NAME: rg-${{ vars.PROJECT_NAME }}-${{ vars.AZURE_RESOURCE_IDENTIFIER }}
-  
+
 jobs:
-
-  app_version:
-    runs-on: ubuntu-latest
-    environment: production
-    permissions:
-      contents: write
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
-    
-    - name: Get Branch
-      id: get-branch
-      shell: bash
-      run: echo "branch=$(git branch -r --contains ${{ github.ref_name }} --format '%(refname:lstrip=3)')" >> $GITHUB_OUTPUT
-
-    - name: Update package.json
-      run: echo "$(jq '.version="${{ github.ref_name }}"' frontend/package.json)" > frontend/package.json
-    
-    - name: Change User
-      run: |
-        git config --local user.name "github-actions[bot]" &&
-        git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
-    
-    - name: Commit and push
-      run: |
-        git add "frontend/package.json" &&
-        git commit -m "[AUTO] Update frontend/package.json version to ${{ github.ref_name }}" &&
-        git push origin HEAD:${{ steps.get-branch.outputs.branch }}
-
-  build_backend_artifact:
-    runs-on: ubuntu-latest
-    environment: production
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
-    - name: Setup .NET SDK 9.0.x
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '9.0.x'
-    
-    - name: Publish the app
-      run: dotnet publish -c Release --property:PublishDir=publish
-      working-directory: ./backend
-    
-    - name: Publish Backend Artifact
-      id: publish-backend-artifact
-      uses: actions/upload-artifact@v6
-      with:
-        name: ParkNDeploy.Api
-        path: ./backend/ParkNDeploy.Api/publish
-        if-no-files-found: error
-
-  build_frontend_artifact:
-    runs-on: ubuntu-latest
-    needs: app_version
-    environment: production
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-    
-    - name: Build the app
-      run: npm install && VITE_APP_VERSION=${{ github.ref_name }} npm run build
-      working-directory: ./frontend
-
-    - name: Ensure lints
-      run: npm run lint
-      working-directory: ./frontend
-    
-    - name: Publish Frontend Artifact
-      id: publish-frontend-artifact
-      uses: actions/upload-artifact@v6
-      with:
-        name: ParkNDeploy.Front
-        path: ./frontend/dist
-        if-no-files-found: error
-
+  # Deploy Infrastructure
   deploy_infrastructure:
+    permissions:
+      id-token: write
+      contents: read
     runs-on: ubuntu-latest
-
     environment: production
 
     outputs:
@@ -103,88 +30,105 @@ jobs:
       staticWebAppName: ${{ steps.bicep_deploy.outputs.staticWebAppName }}
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Login to Azure 
-      uses: azure/login@v2
-      with:
-        client-id: ${{ secrets.AZURE_CLIENT_ID }}
-        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-        enable-AzPSSession: true 
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          enable-AzPSSession: true
 
-    - name: Create resource group if not exists      
-      run: |
-        az group show --name ${{ env.AZURE_RG_NAME }} ||
-        az group create --name ${{ env.AZURE_RG_NAME }} --location ${{ secrets.AZURE_REGION }}
+      - name: Create resource group if not exists
+        run: |
+          az group show --name ${{ env.AZURE_RG_NAME }} ||
+          az group create --name ${{ env.AZURE_RG_NAME }} --location ${{ secrets.AZURE_REGION }}
 
-    - name: Deploy bicep
-      id: bicep_deploy
-      uses: azure/arm-deploy@v2
-      with:
-        subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION }}
-        region: ${{ secrets.AZURE_REGION }}
-        template: ./infrastructure/main.bicep
-        parameters: project=${{ vars.PROJECT_NAME }} location=${{ secrets.AZURE_REGION }} swaLocation=${{ secrets.AZURE_SWA_REGION }} identifier=${{ vars.AZURE_RESOURCE_IDENTIFIER }}
-        resourceGroupName: ${{ env.AZURE_RG_NAME }}
+      - name: Deploy Bicep
+        id: bicep_deploy
+        uses: azure/arm-deploy@v2
+        with:
+          subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          region: ${{ secrets.AZURE_REGION }}
+          resourceGroupName: ${{ env.AZURE_RG_NAME }}
+          template: ./infrastructure/main.bicep
+          parameters: >
+            project=${{ vars.PROJECT_NAME }}
+            location=${{ secrets.AZURE_REGION }}
+            swaLocation=${{ secrets.AZURE_SWA_REGION }}
+            identifier=${{ vars.AZURE_RESOURCE_IDENTIFIER }}
 
+  # Deploy Backend
   deploy_backend:
+    permissions:
+      id-token: write
+      contents: read
     runs-on: ubuntu-latest
-    needs: [ deploy_infrastructure, build_backend_artifact ]
+    needs: deploy_infrastructure
     environment: production
 
     steps:
-      
-    - name: Download Backend Artifact
-      uses: actions/download-artifact@v7
-      id: download-backend-artifact
-      with:
-        name: ParkNDeploy.Api
+      - uses: actions/checkout@v4
 
-    - name: Login to Azure 
-      uses: azure/login@v2
-      with:
-        client-id: ${{ secrets.AZURE_CLIENT_ID }}
-        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      
-    - name: Deploy backend to App Service
-      uses: azure/webapps-deploy@v2
-      with: 
-        app-name: ${{ needs.deploy_infrastructure.outputs.appServiceName }}
-        package: ${{ steps.download-backend-artifact.outputs.download-path }}
-  
+      - name: Download backend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-publish
+          path: backend-publish
+          run-id: ${{ inputs.run_id || github.event.workflow_run.id }}
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy backend to App Service
+        uses: azure/webapps-deploy@v2
+        with:
+          app-name: ${{ needs.deploy_infrastructure.outputs.appServiceName }}
+          package: backend-publish
+
+  # Deploy Frontend
   deploy_frontend:
+    permissions:
+      id-token: write
+      contents: read
     runs-on: ubuntu-latest
-    needs: [ deploy_infrastructure, build_frontend_artifact ]
+    needs: deploy_infrastructure
     environment: production
 
     steps:
+      - uses: actions/checkout@v4
 
-    - name: Download Frontend Artifact
-      uses: actions/download-artifact@v7
-      id: download-frontend-artifact
-      with:
-        name: ParkNDeploy.Front
+      - name: Download frontend artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend-dist
+          run-id: ${{ inputs.run_id || github.event.workflow_run.id }}
 
-    - name: Login to Azure 
-      uses: azure/login@v2
-      with:
-        client-id: ${{ secrets.AZURE_CLIENT_ID }}
-        tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-        subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }} 
-  
-    - name: Get Static Web App deployment token
-      run: |      
-        SWA_DEPLOYMENT_TOKEN=$(az staticwebapp secrets list -n ${{ needs.deploy_infrastructure.outputs.staticWebAppName }} -o tsv --query properties.apiKey)
-        echo SWA_DEPLOYMENT_TOKEN=$SWA_DEPLOYMENT_TOKEN >> $GITHUB_ENV
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-    - name: Deploy frontend to Static Web App
-      uses: azure/static-web-apps-deploy@v1
-      with:
-        azure_static_web_apps_api_token: ${{ env.SWA_DEPLOYMENT_TOKEN }}
-        app_location: ${{ steps.download-frontend-artifact.outputs.download-path }}
-        action: upload
-        skip_app_build: true
-        skip_api_build: true
+      - name: Get Static Web App deployment token
+        run: |
+          TOKEN=$(az staticwebapp secrets list \
+            -n ${{ needs.deploy_infrastructure.outputs.staticWebAppName }} \
+            -o tsv --query properties.apiKey)
+          echo "SWA_DEPLOYMENT_TOKEN=$TOKEN" >> $GITHUB_ENV
+
+      - name: Deploy frontend to Static Web App
+        uses: azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ env.SWA_DEPLOYMENT_TOKEN }}
+          app_location: frontend-dist
+          action: upload
+          skip_app_build: true
+          skip_api_build: true
