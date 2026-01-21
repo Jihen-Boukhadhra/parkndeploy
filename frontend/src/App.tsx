@@ -9,7 +9,9 @@ import ParkingListFilters from "@/components/ParkingList/ParkingListFilters";
 import { useParkingSearchStore } from "@/stores/parkingSearchStore";
 
 function App() {
+   
   const { parkingName } = useParkingSearchStore();
+  const version = import.meta.env.VITE_APP_VERSION || process.env.npm_package_version;
 
   const { data, isPending, isError } = useQuery({
     queryKey: [PARKINGS_QUERY_KEY, { parkingName }],
@@ -22,7 +24,7 @@ function App() {
         Where can I Park in Angers ? 👀
       </h1>
       <h2 className="text-md italic text-center">
-        ParkNDeploy - Version {import.meta.env.VITE_APP_VERSION}
+        ParkNDeploy - Version: {version}
       </h2>
       <ParkingListFilters
         onChange={(parkingName: string) => {
