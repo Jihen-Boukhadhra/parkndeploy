@@ -1,33 +1,52 @@
-on: [pull_request]
+name: Pull Request CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
-  verify_backend:
+  # Frontend CI
+  frontend-build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Setup .NET SDK 9.0.x
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: '9.0.x'
-    
-    - name: Compile the app
-      run: dotnet build -c Release --property:PublishDir=publish
-      working-directory: ./backend
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 21
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
-  verify_frontend:
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+  # Backend CI
+  backend-build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-    
-    - name: Build the app
-      run: npm install && npm run build
-      working-directory: ./frontend
-    
-    - name: Ensure lints
-      run: npm run lint
-      working-directory: ./frontend
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Restore dependencies
+        working-directory: backend
+        run: dotnet restore
+
+      - name: Build backend (Release)
+        working-directory: backend
+        run: dotnet build -c Release --no-restore
