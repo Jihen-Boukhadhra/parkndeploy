@@ -1,59 +1,47 @@
-name: CI Release
+name: CI Release Pipeline
 
 on:
   push:
     tags:
-      - '[0-9]+.[0-9]+.[0-9]+'   # MAJOR.MINOR.PATCH
+      - "v[0-9]+.[0-9]+.[0-9]+"
 
 jobs:
-  # Frontend Release
-  frontend-ci:
-    name: Frontend - Build & Artifact
+  frontend-release:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 21
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          node-version: 18
 
-      - name: Get version from git tag
-        run: echo "VITE_APP_VERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV
-
-      - name: Install frontend dependencies
+      - name: Install dependencies
         working-directory: frontend
         run: npm ci
 
-      - name: Build frontend
+      - name: Build with version
         working-directory: frontend
-        run: npm run build
-        env:
-          VITE_APP_VERSION: ${{ env.VITE_APP_VERSION }}
+        run: |
+          echo "VITE_APP_VERSION=${GITHUB_REF_NAME#v}" >> .env.production
+          npm run build
 
       - name: Upload frontend artifact
         uses: actions/upload-artifact@v4
         with:
-          name: frontend-dist
+          name: frontend-artifact
           path: frontend/dist
 
-  # Backend Release
-  backend-ci:
-    name: Backend - Publish & Artifact
+
+  backend-release:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 9.0.x
+          dotnet-version: 8.0.x
 
       - name: Publish backend
         working-directory: backend
@@ -62,5 +50,5 @@ jobs:
       - name: Upload backend artifact
         uses: actions/upload-artifact@v4
         with:
-          name: backend-publish
+          name: backend-artifact
           path: backend/publish
