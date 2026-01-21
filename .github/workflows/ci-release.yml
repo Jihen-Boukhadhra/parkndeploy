@@ -3,43 +3,102 @@ name: CI Release Pipeline
 on:
   push:
     tags:
-      - "*.*.*"
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  pull_request:
+
+permissions:
+  contents: read  # least privilege for CI
+  id-token: write # needed for Azure login
+
+env:
+  FRONTEND_DIR: frontend
+  BACKEND_DIR: backend
 
 jobs:
-  frontend-release:
+  set_app_version:
+    name: Set App Version
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.set-version.outputs.version }}
+
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          node-version: 18
+          fetch-depth: 0
 
-      - run: npm ci
-        working-directory: frontend
+      - name: Get tag version
+        id: set-version
+        run: |
+          if [[ "${GITHUB_REF}" =~ refs/tags/v([0-9]+\.[0-9]+\.[0-9]+) ]]; then
+            VERSION="${BASH_REMATCH[1]}"
+            echo "Version detected: $VERSION"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "No tag detected, using 0.0.0"
+            echo "version=0.0.0" >> $GITHUB_OUTPUT
+          fi
 
-      - run: npm run build
-        working-directory: frontend
+      - name: Update frontend/package.json
+        run: |
+          jq ".version=\"${{ steps.set-version.outputs.version }}\"" $FRONTEND_DIR/package.json > $FRONTEND_DIR/package.tmp.json
+          mv $FRONTEND_DIR/package.tmp.json $FRONTEND_DIR/package.json
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: frontend-artifact
-          path: frontend/dist
+      - name: Commit version update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$FRONTEND_DIR/package.json"
+          git commit -m "[CI] Update frontend version to ${{ steps.set-version.outputs.version }}" || echo "No changes to commit"
+          git push origin HEAD:${GITHUB_REF##*/} || echo "Push skipped"
 
-
-  backend-release:
+  build_backend_artifact:
+    name: Build & Publish Backend
     runs-on: ubuntu-latest
+    needs: set_app_version
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-dotnet@v4
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: '9.0.x'
 
-      - run: dotnet publish -c Release -o publish
-        working-directory: backend
+      - name: Publish Backend
+        run: dotnet publish -c Release --output publish
+        working-directory: ./backend
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload Backend Artifact
+        uses: actions/upload-artifact@v6
         with:
           name: backend-artifact
-          path: backend/publish
+          path: ./backend/publish
+          if-no-files-found: error
+
+  build_frontend_artifact:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    needs: set_app_version
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install dependencies & build
+        run: |
+          npm install
+          VITE_APP_VERSION=${{ steps.set-version.outputs.version }} npm run build
+        working-directory: ./frontend
+
+      - name: Run lints
+        run: npm run lint
+        working-directory: ./frontend
+
+      - name: Upload Frontend Artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: frontend-artifact
+          path: ./frontend/dist
+          if-no-files-found: error
