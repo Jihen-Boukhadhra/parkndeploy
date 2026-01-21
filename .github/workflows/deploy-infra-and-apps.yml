@@ -70,7 +70,7 @@ jobs:
 
   build_frontend_artifact:
     runs-on: ubuntu-latest
-    needs: persist_app_version
+    needs: app_version
     environment: production
 
     steps:
