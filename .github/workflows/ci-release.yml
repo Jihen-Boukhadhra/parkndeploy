@@ -3,7 +3,7 @@ name: CI Release Pipeline
 on:
   push:
     tags:
-      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "[0-9]+.[0-9]+.[0-9]+"
 
 jobs:
   frontend-release:
