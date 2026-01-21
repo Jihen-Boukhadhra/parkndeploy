@@ -12,7 +12,7 @@ env:
   
 jobs:
 
-  persist_app_version:
+  app_version:
     runs-on: ubuntu-latest
     environment: production
     permissions:
