@@ -1,46 +1,45 @@
-name: CI Merge Request
+name: CI Pull Request Pipeline
 
 on:
   pull_request:
-    branches:
-      - main
+
+permissions:
+  contents: read  # least privilege
 
 jobs:
-  frontend-check:
-    name: Frontend Build & Lint
+  verify_backend:
+    name: Verify Backend
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup .NET SDK 9.0.x
+        uses: actions/setup-dotnet@v4
         with:
-          node-version: 18
+          dotnet-version: '9.0.x'
+
+      - name: Build Backend
+        run: dotnet build -c Release
+        working-directory: ./backend
+
+  verify_frontend:
+    name: Verify Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Install dependencies
-        working-directory: frontend
-        run: npm ci
+        run: npm install
+        working-directory: ./frontend
 
-      - name: Lint
-        working-directory: frontend
-        run: npm run lint
-
-      - name: Build
-        working-directory: frontend
+      - name: Build Frontend
         run: npm run build
+        working-directory: ./frontend
 
-
-  backend-check:
-    name: Backend Build (Release)
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0.x
-
-      - name: Build backend
-        working-directory: backend
-        run: dotnet build -c Release
+      - name: Run Lints
+        run: npm run lint
+        working-directory: ./frontend
