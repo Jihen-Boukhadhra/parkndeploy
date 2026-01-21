@@ -17,12 +17,11 @@ jobs:
     name: Deploy Infrastructure
     runs-on: ubuntu-latest
     environment: production
-
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     outputs:
-      appServiceName: ${{ steps.bicep_deploy.outputs.appServiceName }}
-      staticWebAppName: ${{ steps.bicep_deploy.outputs.staticWebAppName }}
+      appServiceName: ${{ steps.bicep.outputs.appServiceName }}
+      staticWebAppName: ${{ steps.bicep.outputs.staticWebAppName }}
 
     steps:
       - name: Checkout repository
@@ -35,7 +34,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Create resource group if not exists
+      - name: Create resource group
         run: |
           az group show --name ${{ env.AZURE_RG_NAME }} ||
           az group create \
@@ -43,17 +42,13 @@ jobs:
             --location ${{ secrets.AZURE_REGION }}
 
       - name: Deploy Bicep
-        id: bicep_deploy
+        id: bicep
         uses: azure/arm-deploy@v2
         with:
           subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           resourceGroupName: ${{ env.AZURE_RG_NAME }}
           template: ./infrastructure/main.bicep
-          parameters: >
-            project=${{ vars.PROJECT_NAME }}
-            location=${{ secrets.AZURE_REGION }}
-            swaLocation=${{ secrets.AZURE_SWA_REGION }}
-            identifier=${{ vars.AZURE_RESOURCE_IDENTIFIER }}
+          parameters: project=${{ vars.PROJECT_NAME }} location=${{ secrets.AZURE_REGION }} swaLocation=${{ secrets.AZURE_SWA_REGION }} identifier=${{ vars.AZURE_RESOURCE_IDENTIFIER }}
 
   deploy_backend:
     name: Deploy Backend
@@ -77,7 +72,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Deploy backend to App Service
+      - name: Deploy backend
         uses: azure/webapps-deploy@v2
         with:
           app-name: ${{ needs.deploy_infrastructure.outputs.appServiceName }}
@@ -105,14 +100,14 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Get Static Web App deployment token
+      - name: Get Static Web App token
         run: |
           TOKEN=$(az staticwebapp secrets list \
             -n ${{ needs.deploy_infrastructure.outputs.staticWebAppName }} \
             --query properties.apiKey -o tsv)
           echo "SWA_DEPLOYMENT_TOKEN=$TOKEN" >> $GITHUB_ENV
 
-      - name: Deploy frontend to Static Web App
+      - name: Deploy frontend
         uses: azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ env.SWA_DEPLOYMENT_TOKEN }}
