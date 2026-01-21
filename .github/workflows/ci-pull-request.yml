@@ -1,52 +1,46 @@
-name: Pull Request CI
+name: CI Merge Request
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    branches:
+      - main
 
 jobs:
-  # Frontend CI
-  frontend-build:
+  frontend-check:
+    name: Frontend Build & Lint
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 21
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          node-version: 18
 
       - name: Install dependencies
         working-directory: frontend
         run: npm ci
 
-      - name: Run lint
+      - name: Lint
         working-directory: frontend
         run: npm run lint
 
-      - name: Build frontend
+      - name: Build
         working-directory: frontend
         run: npm run build
 
-  # Backend CI
-  backend-build:
+
+  backend-check:
+    name: Backend Build (Release)
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup .NET SDK
-        uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 9.0.x
+          dotnet-version: 8.0.x
 
-      - name: Restore dependencies
+      - name: Build backend
         working-directory: backend
-        run: dotnet restore
-
-      - name: Build backend (Release)
-        working-directory: backend
-        run: dotnet build -c Release --no-restore
+        run: dotnet build -c Release
